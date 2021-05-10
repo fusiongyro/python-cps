@@ -121,11 +121,20 @@ class CapabilityExecutionState(NamedTuple):
         # Step 2: evaluate to the next step
         self.partial_evaluate(tree, message, self.environment)
 
-    def partial_evaluate(self, tree, msg, environment):
-        # how does the message get in here? We need the tree to be a function and the message to be an argument to it
-        # i.e. we are called with tree being something like 'lambda x: lambda y: x + y' and
-        # message being something like 3. so we need to actually construct (lambda x: lambda y: x + y)(3)
-        return asteval.Interpreter(symtable=environment).run(tree)
+    def partial_evaluate(self, tree: ast.Module, msg: Any, environment: dict[str,Any]):
+        # As a rule of thumb, whenever start, we wind up with a Module node. Inside that Module,
+        # we can safely assume there is a body with a single element, which is a lambda expression.
+        # We need to pass the 'msg' to that lambda expression to evaluate the next step, so we must
+        # now wrap it in a Call.
+        call_lambda = ast.Expr(ast.Call(func=tree.body[0].value, args=[ast.Constant(value=msg)], keywords=[]))
+
+        # now we can proceed with evaluation
+        return asteval.Interpreter(symtable=self.expand_environment(environment)).run(call_lambda)
+
+    def expand_environment(self, env: dict[str, Any]) -> dict[str, Any]:
+        # Augment the environment we received by adding in the functions we understand
+        # TODO: implement this
+        return env
 
     def persist(self) -> str:
         """
@@ -133,6 +142,8 @@ class CapabilityExecutionState(NamedTuple):
 
         :return: the capability execution state
         """
+        # TODO: make sure to remove the functions we understand from the environment
+
         pass
 
 
