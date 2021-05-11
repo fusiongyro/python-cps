@@ -1,6 +1,7 @@
 import ast
 from typing import Any
 
+
 class SimPy:
     @staticmethod
     def parse(code: str) -> ast.AST:
@@ -17,7 +18,9 @@ class SimPy:
 class CpsTransformer(ast.NodeTransformer):
     def visit_Module(self, node: ast.Module) -> Any:
         # every chain terminates in a call to "complete()", which our interpreter catches
-        body = node.body + [ast.Expr(value=ast.Call(func=ast.Name(id='complete', ctx=ast.Load()), args=[], keywords=[]))]
+        body = node.body + [
+            ast.Expr(value=ast.Call(func=ast.Name(id="complete", ctx=ast.Load()), args=[], keywords=[]))
+        ]
         return ast.Module(body=self.cps_convert(body), type_ignores=node.type_ignores)
 
     def cps_convert(self, body: list[ast.Expr]):
@@ -34,12 +37,20 @@ class CpsTransformer(ast.NodeTransformer):
 
         # if the thing before that is a function call, pass inner as a continuation to it
         if isinstance(penultimate.value, ast.Call):
-            return ast.Expr(value=ast.Call(func=penultimate.value.func, args=penultimate.value.args + [inner], keywords=penultimate.value.keywords))
+            return ast.Expr(
+                value=ast.Call(
+                    func=penultimate.value.func,
+                    args=penultimate.value.args + [inner],
+                    keywords=penultimate.value.keywords,
+                )
+            )
         else:
             raise NotImplementedError
 
     def blank_arguments(self):
-        return ast.arguments(posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[])
+        return ast.arguments(
+            posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]
+        )
 
 
 class SimpleEvaluator(ast.NodeVisitor):
