@@ -6,21 +6,18 @@ def test_simple():
     myast = SimPy.parse("f()\ng()")
     assert ast.dump(myast, indent=2) == ast.dump(ast.parse("f(lambda _: g(lambda _: complete()))"), indent=2)
 
-    f_called = False
+    called = []
 
     def f(cont):
-        f_called = True
+        called.append("f")
         cont(None)
 
-    g_called = False
-
     def g(cont):
-        g_called = True
+        called.append("g")
         cont(None)
 
     SimPy.eval(myast, {"f": f, "g": g})
-    assert f_called == True
-    assert g_called == True
+    assert called == ["f", "g"]
 
 
 # LATER

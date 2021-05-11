@@ -10,9 +10,31 @@ class SimPy:
         normal = ast.parse(code)
         return CpsTransformer().visit(normal)
 
-    @staticmethod
-    def eval(code: ast.AST, env: dict[str, Any]) -> Any:
-        return SimpleEvaluator(env).visit(code)
+    @classmethod
+    def eval(cls, node: ast.AST, env: dict[str, Any]) -> Any:
+        # the right way to do this is with a recursive function
+        # that unfortunately necessitates some rather gross type inspection
+        if isinstance(node, ast.Module):
+            assert len(node.body) == 1
+            return cls.eval(node.body[0], env)
+
+        elif isinstance(node, ast.Expr):
+            assert isinstance(node.value, ast.Call)
+            return cls.eval(node.value, env)
+
+        elif isinstance(node, ast.Call):
+            # handle the lambda expression by preparing an invocation to eval
+            # with the right environment
+            def lambda_miracle(lambda_ast: ast.Lambda, varname: str):
+                return lambda value: cls.eval(lambda_ast, env | {varname: value})
+
+            args = node.args
+            if isinstance(args[-1], ast.Lambda):
+                args[-1] = lambda_miracle(args[-1], args[-1].args.args[0].arg)
+            return env[node.func.id](*args)
+
+        else:
+            raise NotImplementedError(type(node))
 
 
 class CpsTransformer(ast.NodeTransformer):
@@ -51,27 +73,3 @@ class CpsTransformer(ast.NodeTransformer):
         return ast.arguments(
             posonlyargs=[], args=[ast.arg(arg="_")], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]
         )
-
-
-class SimPyLambda(ast.Lambda):
-    def __call__(self, arg):
-        # FIXME: dude, where's my environment?
-        SimpleEvaluator({self.args.args[0].arg: arg}).visit(self.body)
-
-
-class SimpleEvaluator(ast.NodeVisitor):
-    def __init__(self, env: dict[str, Any]):
-        self.env = env
-
-    def visit_Module(self, node: ast.Module) -> Any:
-        # we should never have more than one expression in the body
-        assert len(node.body) == 1
-        return self.visit(node.body[0])
-
-    def visit_Expr(self, node: ast.Expr) -> Any:
-        # at the moment we only support Calls
-        assert isinstance(node.value, ast.Call)
-        return self.visit(node.value)
-
-    def visit_Call(self, node: ast.Call) -> Any:
-        return self.env[node.func.id](*node.args)
