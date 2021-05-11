@@ -1,20 +1,24 @@
 import ast
 from cps.simpy import SimPy
 
+
 def test_simple():
-    myast = SimPy.parse('f()\ng()')
-    assert ast.dump(ast.parse('f(lambda: g(lambda: complete()))'), indent=2) == ast.dump(myast, indent=2)
+    myast = SimPy.parse("f()\ng()")
+    assert ast.dump(myast, indent=2) == ast.dump(ast.parse("f(lambda _: g(lambda _: complete()))"), indent=2)
 
     f_called = False
+
     def f(cont):
         f_called = True
-        cont()
+        cont(None)
+
+    g_called = False
 
     def g(cont):
         g_called = True
-        cont()
+        cont(None)
 
-    SimPy.eval(myast, {'f': f, 'g': g})
+    SimPy.eval(myast, {"f": f, "g": g})
     assert f_called == True
     assert g_called == True
 

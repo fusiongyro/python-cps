@@ -49,9 +49,29 @@ class CpsTransformer(ast.NodeTransformer):
 
     def blank_arguments(self):
         return ast.arguments(
-            posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]
+            posonlyargs=[], args=[ast.arg(arg="_")], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]
         )
 
 
+class SimPyLambda(ast.Lambda):
+    def __call__(self, arg):
+        # FIXME: dude, where's my environment?
+        SimpleEvaluator({self.args.args[0].arg: arg}).visit(self.body)
+
+
 class SimpleEvaluator(ast.NodeVisitor):
-    pass
+    def __init__(self, env: dict[str, Any]):
+        self.env = env
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        # we should never have more than one expression in the body
+        assert len(node.body) == 1
+        return self.visit(node.body[0])
+
+    def visit_Expr(self, node: ast.Expr) -> Any:
+        # at the moment we only support Calls
+        assert isinstance(node.value, ast.Call)
+        return self.visit(node.value)
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        return self.env[node.func.id](*node.args)
