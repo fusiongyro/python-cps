@@ -224,6 +224,67 @@ def dump(node):
     print(ast.dump(node, indent=2))
 
 
+class LInterpreter(asteval.Interpreter):
+    def __init__(self, symtable=None, usersyms=None, writer=None,
+                 err_writer=None, use_numpy=True, minimal=False,
+                 no_if=False, no_for=False, no_while=False, no_try=False,
+                 no_functiondef=False, no_ifexp=False, no_listcomp=False,
+                 no_augassign=False, no_assert=False, no_delete=False,
+                 no_raise=False, no_print=False, max_time=None,
+                 readonly_symbols=None, builtins_readonly=False):
+        super().__init__(symtable, usersyms, writer,
+                         err_writer, use_numpy, minimal,
+                         no_if, no_for, no_while, no_try,
+                         no_functiondef, no_ifexp, no_listcomp,
+                         no_augassign, no_assert, no_delete,
+                         no_raise, no_print, max_time,
+                         readonly_symbols, builtins_readonly)
+        self.node_handlers['lambda'] = self.on_lambda
+
+    def on_lambda(self, node: ast.Lambda):
+        return node
+
+    def on_call(self, node: ast.Call):
+        # if the function is a lambda, we start processing it here
+        # otherwise, we refer to the parent
+        func = self.run(node.func)
+        if isinstance(func, ast.Lambda):
+            # this is all repetition of work done in on_call in the parent class
+            args = [self.run(targ) for targ in node.args]
+            starargs = getattr(node, 'starargs', None)
+            if starargs is not None:
+                args = args + self.run(starargs)
+
+            keywords = {}
+            if func == print:
+                keywords['file'] = self.writer
+            for key in node.keywords:
+                if not isinstance(key, ast.keyword):
+                    msg = "keyword error in function call '%s'" % (func)
+                    self.raise_exception(node, msg=msg)
+                if key.arg is None:
+                    keywords.update(self.run(key.value))
+                elif key.arg in keywords:
+                    self.raise_exception(node,
+                                         msg="keyword argument repeated: %s" % key.arg,
+                                         exc=SyntaxError)
+                else:
+                    keywords[key.arg] = self.run(key.value)
+
+            kwargs = getattr(node, 'kwargs', None)
+
+            if kwargs is not None:
+                keywords.update(self.run(kwargs))
+
+            # now we have the arguments and the func, so we must evaluate the body of the lambda with
+            # the new environment
+            old_table = self.symtable.copy()
+            for name, value in zip(node.func.args.args, args):
+                self.symtable[name.arg] = value
+            retval = self.run(node.func.body)
+            self.symtable = old_table
+            return retval
+
 def main():
     #simple2_ast = ast.parse(inspect.getsource(simple2))
     #simple2_ast_cps = CpsTransform().visit(simple2_ast)
