@@ -3,8 +3,6 @@ import operator
 
 from cps.simpy import SimPy, Lambda
 
-import pytest
-
 
 def test_simple():
     myast = SimPy.parse("f()\ng()")
@@ -53,7 +51,6 @@ def test_suspend():
     assert called == ["do_something"]
 
 
-@pytest.mark.skip
 def test_closure():
     # we still need a solution for putting things into the environment
     myast = ast.parse("(lambda x: lambda y: plus(x,y))(2)(3)")

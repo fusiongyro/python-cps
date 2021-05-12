@@ -52,7 +52,7 @@ class Lambda(ast.Lambda):
     def __call__(self, *args, **kwargs):
         # step 1: need to match up my args and their names
         new_environment = {arg.arg: value for arg, value in zip(self.args.args, args)}
-        SimPy.eval(self.body, new_environment | self.environment)
+        return SimPy.eval(self.body, new_environment | self.environment)
 
 
 class CpsTransformer(ast.NodeTransformer):
