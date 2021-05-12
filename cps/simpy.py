@@ -3,6 +3,8 @@ from typing import Any
 
 
 class SimPy:
+    BUILTINS = {"complete": lambda: None}
+
     @staticmethod
     def parse(code: str) -> ast.AST:
         # first we parse the AST
@@ -22,19 +24,32 @@ class SimPy:
             assert isinstance(node.value, ast.Call)
             return cls.eval(node.value, env)
 
+        elif isinstance(node, ast.Name):
+            return (env | cls.BUILTINS)[node.id]
+
+        elif isinstance(node, ast.Lambda):
+            # so the problem here is that we need to both be able to actually call this, and be able to turn it
+            # back into an ast node
+            return Lambda(node.args, node.body, env)
+
         elif isinstance(node, ast.Call):
             # handle the lambda expression by preparing an invocation to eval
             # with the right environment
-            def lambda_miracle(lambda_ast: ast.Lambda, varname: str):
-                return lambda value: cls.eval(lambda_ast, env | {varname: value})
-
-            args = node.args
-            if isinstance(args[-1], ast.Lambda):
-                args[-1] = lambda_miracle(args[-1], args[-1].args.args[0].arg)
-            return env[node.func.id](*args)
+            return cls.eval(node.func, env)(*[cls.eval(arg, env) for arg in node.args])
 
         else:
             raise NotImplementedError(type(node))
+
+
+class Lambda(ast.Lambda):
+    def __init__(self, args, body, environment: dict[str, Any]):
+        super().__init__(args, body)
+        self.environment = environment
+
+    def __call__(self, *args, **kwargs):
+        # step 1: need to match up my args and their names
+        new_environment = {arg.arg: value for arg, value in zip(self.args.args, args)}
+        SimPy.eval(self.body, new_environment | self.environment)
 
 
 class CpsTransformer(ast.NodeTransformer):

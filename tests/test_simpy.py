@@ -20,7 +20,6 @@ def test_simple():
     assert called == ["f", "g"]
 
 
-# LATER
 # def test_compose():
 #     myast = SimPy.parse('f(g())')
 #     assert myast == ast.parse('g(lambda x: f(x))')
