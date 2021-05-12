@@ -21,7 +21,7 @@ class SimPy:
             return cls.eval(node.body[0], env)
 
         elif isinstance(node, ast.Expr):
-            assert isinstance(node.value, ast.Call)
+            # assert isinstance(node.value, ast.Call)
             return cls.eval(node.value, env)
 
         elif isinstance(node, ast.Name):
@@ -36,6 +36,9 @@ class SimPy:
             # handle the lambda expression by preparing an invocation to eval
             # with the right environment
             return cls.eval(node.func, env)(*[cls.eval(arg, env) for arg in node.args])
+
+        elif isinstance(node, ast.Constant):
+            return node.value
 
         else:
             raise NotImplementedError(type(node))
